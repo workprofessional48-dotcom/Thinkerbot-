@@ -1,26 +1,43 @@
 import os
+from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Telegram Bot Token (Render ke env variable se lega)
 TOKEN = os.getenv("BOT_TOKEN")
+APP_URL = os.getenv("APP_URL")  # Render ka URL (env me daloge)
 
-# /start command
+app = Flask(__name__)
+
+# Telegram application
+application = Application.builder().token(TOKEN).build()
+
+# Commands
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello! ✅ Your bot is live on Render.")
+    await update.message.reply_text("Hello 👋, I am alive on Render using Webhook!")
 
-# /help command
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Available commands:\n/start - Start the bot\n/help - Help menu")
+    await update.message.reply_text("Commands:\n/start - start the bot\n/help - help menu")
 
-def main():
-    app = Application.builder().token(TOKEN).build()
+application.add_handler(CommandHandler("start", start))
+application.add_handler(CommandHandler("help", help_command))
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("help", help_command))
+# Flask route for webhook
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    update = Update.de_json(request.get_json(force=True), application.bot)
+    application.update_queue.put_nowait(update)
+    return "ok"
 
-    print("Bot is polling... 🚀")
-    app.run_polling()
+# Home route (optional)
+@app.route("/")
+def home():
+    return "Bot is running ✅"
 
 if __name__ == "__main__":
-    main()
+    # Set webhook
+    import asyncio
+    async def set_webhook():
+        await application.bot.set_webhook(f"{APP_URL}/{TOKEN}")
+
+    asyncio.run(set_webhook())
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
