@@ -1,43 +1,30 @@
 import os
-from flask import Flask, request
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 
+# Environment variable se token aur URL lena
 TOKEN = os.getenv("BOT_TOKEN")
-APP_URL = os.getenv("APP_URL")  # Render ka URL (env me daloge)
+APP_URL = os.getenv("APP_URL")  # e.g. https://thinkerbot-81.onrender.com
 
-app = Flask(__name__)
-
-# Telegram application
-application = Application.builder().token(TOKEN).build()
-
-# Commands
+# /start command ka handler
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Hello 👋, I am alive on Render using Webhook!")
+    await update.message.reply_text("🚀 Bot is live on Render!")
 
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Commands:\n/start - start the bot\n/help - help menu")
+def main():
+    # Bot app build karna
+    app = Application.builder().token(TOKEN).build()
 
-application.add_handler(CommandHandler("start", start))
-application.add_handler(CommandHandler("help", help_command))
+    # /start handler add karna
+    app.add_handler(CommandHandler("start", start))
 
-# Flask route for webhook
-@app.route(f"/{TOKEN}", methods=["POST"])
-def webhook():
-    update = Update.de_json(request.get_json(force=True), application.bot)
-    application.update_queue.put_nowait(update)
-    return "ok"
-
-# Home route (optional)
-@app.route("/")
-def home():
-    return "Bot is running ✅"
+    # Webhook setup for Render
+    port = int(os.environ.get("PORT", 8443))
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=port,
+        url_path=TOKEN,
+        webhook_url=f"{APP_URL}/{TOKEN}"
+    )
 
 if __name__ == "__main__":
-    # Set webhook
-    import asyncio
-    async def set_webhook():
-        await application.bot.set_webhook(f"{APP_URL}/{TOKEN}")
-
-    asyncio.run(set_webhook())
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    main()
