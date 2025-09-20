@@ -1,106 +1,80 @@
 import os
 import logging
 from telegram import Update, BotCommand
-from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-# --------------------------
-# Logging setup
-# --------------------------
+# Logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# --------------------------
-# Load environment variables safely
-# --------------------------
+# Load environment variables
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-APP_URL = os.environ.get("APP_URL")  # Optional for webhook
+APP_URL = os.environ.get("APP_URL")  # Optional
 
 if not TOKEN:
-    logger.error(
-        "TELEGRAM_TOKEN environment variable not found! "
-        "Please set your bot token correctly."
-    )
+    logger.error("TELEGRAM_TOKEN environment variable not found!")
     exit(1)
 else:
     logger.info("Telegram bot token found ✅")
 
 if not APP_URL:
-    logger.warning(
-        "APP_URL not set. Bot will fallback to polling mode."
-    )
+    logger.warning("APP_URL not set. Bot will use polling mode.")
 
-# --------------------------
-# Command Handlers
-# --------------------------
-def start(update: Update, context: CallbackContext):
+# ---------------- Command Handlers ----------------
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    update.message.reply_text(
-        f"Hello {user.first_name}! 🤖\n"
-        "Bot is active and ready.\n"
-        "Use /info to know more about this bot."
+    await update.message.reply_text(
+        f"Hello {user.first_name}! 🤖\nBot is active.\nUse /info for details."
     )
 
-def info(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "Bot Information:\n"
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Bot Info:\n"
         "- Author: Your Name\n"
         "- Version: 1.0\n"
         "- Platform: Python + Telegram Bot API\n"
-        "- Hosting: Render or Local\n"
+        "- Hosting: Render or Local"
     )
 
-def help_command(update: Update, context: CallbackContext):
-    update.message.reply_text(
-        "Available commands:\n"
-        "/start - Start the bot\n"
-        "/info - Bot information\n"
-        "/help - This help message"
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Commands:\n/start - Start the bot\n/info - Bot info\n/help - This message"
     )
 
-# --------------------------
-# Main Function
-# --------------------------
+# ---------------- Main ----------------
 def main():
-    # Create Updater and Dispatcher
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
+    # Create Application
+    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Add commands
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("info", info))
-    dp.add_handler(CommandHandler("help", help_command))
+    # Add handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("info", info))
+    app.add_handler(CommandHandler("help", help_command))
 
     # Set bot commands in Telegram UI
-    updater.bot.set_my_commands([
+    app.bot.set_my_commands([
         BotCommand("start", "Start the bot"),
         BotCommand("info", "Get bot info"),
         BotCommand("help", "Show help message")
     ])
 
-    # --------------------------
-    # Webhook (Render) or Polling (fallback)
-    # --------------------------
+    # Start bot
     if APP_URL:
         port = int(os.environ.get("PORT", 5000))
         logger.info(f"Starting webhook at {APP_URL} on port {port}...")
-        updater.start_webhook(
+        app.run_webhook(
             listen="0.0.0.0",
             port=port,
             url_path=TOKEN,
             webhook_url=f"{APP_URL}/{TOKEN}"
         )
     else:
-        logger.info("APP_URL not set. Starting bot in polling mode...")
-        updater.start_polling()
+        logger.info("APP_URL not set. Starting polling mode...")
+        app.run_polling()
 
-    logger.info("Bot is running ✅")
-    updater.idle()
-
-# --------------------------
-# Run
-# --------------------------
+# ---------------- Run ----------------
 if __name__ == "__main__":
     main()
