@@ -13,17 +13,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # --------------------------
-# Environment variables
+# Load environment variables safely
 # --------------------------
 TOKEN = os.environ.get("TELEGRAM_TOKEN")
-APP_URL = os.environ.get("APP_URL")  # Render app URL: e.g. https://my-telegram-bot.onrender.com
+APP_URL = os.environ.get("APP_URL")  # Optional for webhook
 
 if not TOKEN:
-    logger.error("TELEGRAM_TOKEN environment variable not found!")
+    logger.error(
+        "TELEGRAM_TOKEN environment variable not found! "
+        "Please set your bot token correctly."
+    )
     exit(1)
+else:
+    logger.info("Telegram bot token found ✅")
 
 if not APP_URL:
-    logger.warning("APP_URL not set. Webhook may not work correctly.")
+    logger.warning(
+        "APP_URL not set. Bot will fallback to polling mode."
+    )
 
 # --------------------------
 # Command Handlers
@@ -31,18 +38,18 @@ if not APP_URL:
 def start(update: Update, context: CallbackContext):
     user = update.effective_user
     update.message.reply_text(
-        f"Hello {user.first_name}! 🤖\n\n"
-        "I am your Telegram bot.\n"
-        "Use /info to get bot details."
+        f"Hello {user.first_name}! 🤖\n"
+        "Bot is active and ready.\n"
+        "Use /info to know more about this bot."
     )
 
 def info(update: Update, context: CallbackContext):
     update.message.reply_text(
-        "Bot Info:\n"
+        "Bot Information:\n"
         "- Author: Your Name\n"
         "- Version: 1.0\n"
         "- Platform: Python + Telegram Bot API\n"
-        "- Hosting: Render\n"
+        "- Hosting: Render or Local\n"
     )
 
 def help_command(update: Update, context: CallbackContext):
@@ -57,16 +64,16 @@ def help_command(update: Update, context: CallbackContext):
 # Main Function
 # --------------------------
 def main():
-    # Updater & Dispatcher
+    # Create Updater and Dispatcher
     updater = Updater(TOKEN, use_context=True)
     dp = updater.dispatcher
 
-    # Add command handlers
+    # Add commands
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("info", info))
     dp.add_handler(CommandHandler("help", help_command))
 
-    # Set bot commands for Telegram UI
+    # Set bot commands in Telegram UI
     updater.bot.set_my_commands([
         BotCommand("start", "Start the bot"),
         BotCommand("info", "Get bot info"),
@@ -74,7 +81,7 @@ def main():
     ])
 
     # --------------------------
-    # Webhook for Render deployment
+    # Webhook (Render) or Polling (fallback)
     # --------------------------
     if APP_URL:
         port = int(os.environ.get("PORT", 5000))
@@ -86,12 +93,11 @@ def main():
             webhook_url=f"{APP_URL}/{TOKEN}"
         )
     else:
-        # Fallback to polling if APP_URL not set
         logger.info("APP_URL not set. Starting bot in polling mode...")
         updater.start_polling()
 
+    logger.info("Bot is running ✅")
     updater.idle()
-    logger.info("Bot stopped.")
 
 # --------------------------
 # Run
